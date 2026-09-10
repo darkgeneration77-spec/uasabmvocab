@@ -48,7 +48,6 @@ specific = {
     ],
     't09-keselamatan-full-master.html': [
         ('mitigasi risiko', 'pengurangan risiko'),
-        ('降低风险', '降低风险'),
         ('kerangka keselamatan', 'panduan keselamatan'),
         ('安全框架', '安全指南'),
         ('pengurusan risiko bersepadu', 'pengurusan risiko menyeluruh'),
@@ -86,9 +85,7 @@ specific = {
         ('fragmentasi habitat', 'pemecahan habitat'),
         ('栖息地破碎化', '栖息地被分割'),
         ('konservasi biodiversiti', 'pemuliharaan biodiversiti'),
-        ('生物多样性保育', '生物多样性保育'),
         ('pusat konservasi', 'pusat pemuliharaan'),
-        ('保育中心', '保育中心'),
         ('spesies invasif', 'spesies asing yang mengancam'),
         ('入侵物种', '具威胁性的外来物种'),
         ('eksploitasi sumber', 'penggunaan sumber secara berlebihan'),
@@ -101,15 +98,12 @@ specific = {
         ('adaptasi iklim', 'penyesuaian terhadap perubahan iklim'),
         ('气候适应', '适应气候变化'),
         ('dinamik atmosfera', 'perubahan atmosfera'),
-        ('大气变化', '大气变化'),
         ('interpretasi data', 'tafsiran data'),
-        ('数据解读', '数据解读'),
     ],
     't15-kemudahan-awam-full-master.html': [
         ('standard aksesibiliti', 'standard kebolehcapaian'),
         ('无障碍标准', '无障碍使用标准'),
         ('pengurusan fasiliti', 'pengurusan kemudahan'),
-        ('设施管理', '设施管理'),
     ],
     't16-pengangkutan-jalan-raya-full-master.html': [
         ('pengoptimuman trafik', 'penambahbaikan aliran trafik'),
@@ -119,7 +113,6 @@ specific = {
         ('keterangkuman digital', 'akses digital untuk semua'),
         ('数字包容', '让所有人获得数字资源'),
         ('akauntabiliti dalam talian', 'tanggungjawab dalam talian'),
-        ('网络责任', '网络责任'),
         ('kewarganegaraan digital', 'tanggungjawab sebagai pengguna digital'),
         ('数字公民意识', '数字使用者责任'),
         ('kendiri digital', 'pembelajaran kendiri secara digital'),
@@ -129,7 +122,6 @@ specific = {
         ('ekosistem pekerjaan', 'dunia pekerjaan'),
         ('就业生态', '职场环境'),
         ('kebertanggungjawaban', 'tanggungjawab'),
-        ('责任意识', '责任'),
         ('mobiliti kerjaya', 'pergerakan kerjaya'),
         ('职业流动', '职业变化与发展'),
     ],
@@ -153,7 +145,6 @@ for path in files:
     for a, b in specific.get(path.name, []):
         text = text.replace(a, b)
 
-    # 可见首页的 Level 改成马来文/华语；内部 JS 变量名不动。
     if path.name == 'index.html':
         text = text.replace('学习的 Level', '学习的等级（L1–L8）')
         text = text.replace('Level。', '等级（L1–L8）。')
@@ -162,7 +153,6 @@ for path in files:
         path.write_text(text, encoding='utf-8')
         changed.append(path.name)
 
-# 静态完整性检查。人类喜欢把网页做成一团线，所以至少让机器先抓最明显的坑。
 errors = []
 for path in sorted(ROOT.glob('t*.html')):
     text = path.read_text(encoding='utf-8')
@@ -170,10 +160,40 @@ for path in sorted(ROOT.glob('t*.html')):
         errors.append(f'{path.name}: missing home link')
     if '<html' not in text.lower() or '</html>' not in text.lower():
         errors.append(f'{path.name}: incomplete html shell')
-    # 不允许这些明显裸英文学生标签残留。
-    for bad in ['Vocabulary Master', 'Vocabulary Full Master', 'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5']:
+    for bad in ['Vocabulary Master', 'Vocabulary Full Master', 'Form 1', 'Form 2', 'Form 3', 'Form 4', 'Form 5', '�']:
         if bad in text:
-            errors.append(f'{path.name}: visible/embedded label remains: {bad}')
+            errors.append(f'{path.name}: forbidden residue: {bad}')
+
+# 仅报告，不自动删除：这些词未必错误，但值得人工二次审核。
+suspects = [
+    'literasi', 'psikososial', 'kardiorespiratori', 'mitigasi', 'sensori',
+    'gastronomi', 'kulinari', 'ekonomi kitaran', 'daya tampung', 'aksesibiliti',
+    'pengoptimuman', 'keterangkuman', 'kewarganegaraan digital', 'kebertanggungjawaban',
+    'fragmentasi', 'konservasi', 'invasif', 'eksploitasi', 'dinamik atmosfera',
+    'interpretasi', 'ekosistem pekerjaan', 'malpemakanan', 'proksimal', 'korelasi',
+    'sistemik', 'sinergi', 'trade-off', 'Causality', 'fair play', 'register'
+]
+print('SUSPECT TERM REPORT')
+for path in sorted(ROOT.glob('t*.html')):
+    text = path.read_text(encoding='utf-8').lower()
+    hits = sorted({term for term in suspects if term.lower() in text})
+    if hits:
+        print(path.name + ': ' + ', '.join(hits))
+
+# 基本规模检查：T01–T29 通常应有 A–J，T30 为专门重构页但也必须有主要类别。
+for path in sorted(ROOT.glob('t*.html')):
+    text = path.read_text(encoding='utf-8').lower()
+    if path.name.startswith('t30-'):
+        needed = ['simpulan bahasa', 'perumpamaan', 'pepatah', 'bidalan', 'perbilangan', 'kata-kata hikmat']
+        for item in needed:
+            if item not in text:
+                errors.append(f'{path.name}: missing peribahasa category: {item}')
+    else:
+        # 不强制 HTML 写法相同，只确认 A–J 的主题识别大致存在。
+        # 旧页可能用 id="A"，新页可能用 id="a" 或 JS 生成，因此只做宽松检查。
+        section_score = sum(1 for letter in 'abcdefghij' if (f'id="{letter}"' in text or f"'{letter}'" in text or f'#{letter}' in text))
+        if section_score < 8:
+            errors.append(f'{path.name}: section map looks incomplete ({section_score}/10)')
 
 print('CHANGED:', ', '.join(changed) if changed else 'none')
 if errors:
