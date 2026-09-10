@@ -1,0 +1,40 @@
+name: Flatten theme level display
+on:
+  push:
+    paths:
+      - '.github/theme_flatten_trigger'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  flatten:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove visible grade layers from theme pages
+        shell: python
+        run: |
+          from pathlib import Path
+          import re
+          files=sorted(Path('.').glob('t*.html'))
+          marker='/* FLAT_THEME_NO_LEVELS */'
+          css='''\n<style>\n/* FLAT_THEME_NO_LEVELS */\n.hero .badges{display:none!important}\n.hero .topbar .badge{display:none!important}\n.levels{padding:18px;display:block}\n.levels details{display:contents!important;border:0!important;margin:0!important;background:transparent!important}\n.levels details>summary{display:none!important}\n.levels .level-content{padding:0!important;display:block!important}\n.levels .vocab{margin:0 0 12px}\n.levels .route{display:none!important}\n</style>\n'''
+          changed=0
+          for p in files:
+              s=p.read_text(encoding='utf-8')
+              if marker not in s:
+                  s=s.replace('</head>',css+'</head>',1)
+              # Remove visible grade/exam wording from hero copy while retaining theme description.
+              s=re.sub(r'<div class="badges">[\s\S]*?</div>\s*</section>', '</section>', s, count=1)
+              s=re.sub(r'<div class="badge">Tahun 1\s*→\s*Tingkatan 5</div>', '', s)
+              p.write_text(s,encoding='utf-8')
+              changed+=1
+          print('processed',changed,'theme files')
+      - name: Commit cleaned themes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add t*.html
+          git diff --cached --quiet && exit 0
+          git commit -m "Flatten T01-T30 theme vocabulary display"
+          git push
