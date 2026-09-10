@@ -2,7 +2,7 @@
 const files=[
 ['T01','t01-kata-kerja.html'],['T02','t02-kata-adjektif-full-master-v2-unified.html'],['T03','t03-perasaan-emosi-full-master.html'],['T04','t04-perwatakan-full-master.html'],['T05','t05-keluarga-full-master.html'],['T06','t06-sekolah-pendidikan-full-master.html'],['T07','t07-kesihatan-full-master.html'],['T08','t08-kebersihan-full-master.html'],['T09','t09-keselamatan-full-master.html'],['T10','t10-makanan-pemakanan-full-master.html'],['T11','t11-alam-sekitar-full-master.html'],['T12','t12-haiwan-tumbuhan-full-master.html'],['T13','t13-cuaca-alam-full-master.html'],['T14','t14-masyarakat-kejiranan-full-master.html'],['T15','t15-kemudahan-awam-full-master.html'],['T16','t16-pengangkutan-jalan-raya-full-master.html'],['T17','t17-sukan-rekreasi-full-master.html'],['T18','t18-teknologi-komunikasi-full-master.html'],['T19','t19-pekerjaan-full-master.html'],['T20','t20-ekonomi-kewangan-full-master.html'],['T21','t21-kebudayaan-warisan-full-master.html'],['T22','t22-patriotisme-full-master.html'],['T23','t23-nilai-murni-full-master.html'],['T24','t24-masalah-penyelesaian-full-master.html'],['T25','t25-sebab-akibat-full-master.html'],['T26','t26-kata-hubung-penanda-wacana-full-master.html'],['T27','t27-kata-arah-tempat-masa-full-master.html'],['T28','t28-imbuhan-full-master.html'],['T29','t29-sinonim-antonim-full-master.html'],['T30','t30-ungkapan-peribahasa-full-master.html']];
 const fileMap=new Map(files);
-const extraFiles=['dictionary-extra-1.json','dictionary-extra-2.json','dictionary-extra-3.json'];
+const extraFiles=['dictionary-extra-1.json','dictionary-extra-2.json','dictionary-extra-3.json','curriculum-dict-04.json'];
 
 const style=document.createElement('style');
 style.textContent=`
@@ -15,79 +15,15 @@ document.head.appendChild(style);
 
 const dashboard=document.querySelector('.dashboard');
 if(!dashboard)return;
-const panel=document.createElement('section');
-panel.className='word-search-panel';
-panel.innerHTML=`<h2>Kamus Kosa Kata｜课程词汇字典</h2><p class="word-search-help">输入马来文或华语，例如 <b>gembira</b>、<b>menghuraikan</b>、<b>关心</b>。系统会显示词义、等级、用法、例句与相关词。</p><div class="word-search-box"><input id="wordSearch" class="word-search-input" type="search" autocomplete="off" placeholder="Cari perkataan / 搜索词汇，例如 gembira、menghuraikan、关心"></div><div class="word-search-note">词库依据 DSKP / KSSR / KSSM / UASA 的语言能力、系统语言与学校常用语境扩展；不是 KPM 官方逐词封闭清单。</div><div id="wordSearchStatus" class="word-search-status">Memuatkan kosa kata…｜正在载入词库…</div><div id="wordResults" class="word-results"></div><div id="wordEmpty" class="word-empty">Perkataan tidak ditemui｜没有找到这个词</div>`;
-dashboard.insertAdjacentElement('afterend',panel);
-
-const input=panel.querySelector('#wordSearch'), results=panel.querySelector('#wordResults'), status=panel.querySelector('#wordSearchStatus'), empty=panel.querySelector('#wordEmpty');
-let index=[];
-const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-const norm=s=>String(s??'').toLowerCase().normalize('NFKC').trim();
-const clean=s=>String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
-const add=o=>{if(!o.word||!o.meaning)return; const key=[norm(o.word),norm(o.meaning),o.href,o.level,o.section,o.usage||''].join('|'); if(!index.some(x=>x._key===key))index.push({...o,_key:key});};
-
-function parseRaw(text,code,href){
- const m=text.match(/const\s+raw\s*=\s*`([\s\S]*?)`\s*;/); if(!m)return false;
- const lines=m[1].split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
- for(const line of lines){const p=line.split('|'); if(p.length<11)continue; const section=p[0].toUpperCase(); const msTitle=clean(p[1]), zhTitle=clean(p[2]);
-  for(let i=3;i<=10;i++){const level='L'+(i-2); const entries=p[i].split(';').map(x=>x.trim()).filter(Boolean); const related=entries.map(e=>clean(e.split('~')[0])).filter(Boolean);
-   for(const e of entries){const k=e.indexOf('~'); if(k<1)continue; add({word:clean(e.slice(0,k)),meaning:clean(e.slice(k+1)),code,href,level,section,sectionTitle:msTitle+'｜'+zhTitle,related});}
-  }
- }
- return true;
-}
-
-function parseDom(text,code,href){
- const doc=new DOMParser().parseFromString(text,'text/html');
- const pageTitle=clean(doc.querySelector('h1')?.textContent||code);
- const containers=[...doc.querySelectorAll('.item,.word')];
- for(const c of containers){
-  const wordEl=c.querySelector('.bm,strong'); if(!wordEl)continue; const word=clean(wordEl.textContent); if(!word)continue;
-  let meaning=''; const zh=c.querySelector('.zh');
-  if(zh)meaning=clean(zh.textContent); else {const ds=[...c.children].filter(x=>x!==wordEl && x.tagName!=='SMALL'); meaning=clean(ds[0]?.textContent||'');}
-  if(!meaning)continue;
-  const levelEl=c.closest('.level,details'); const cls=(levelEl?.className||'').toString(); const lm=cls.match(/\bl([1-8])\b/i); let level=lm?'L'+lm[1]:'';
-  if(!level){const h=clean(levelEl?.querySelector('h3,summary')?.textContent||''); const hm=h.match(/L([1-8])/i); if(hm)level='L'+hm[1];}
-  const sec=c.closest('details.section,.section'); const section=(sec?.id||'').toUpperCase(); let sectionTitle=clean(sec?.querySelector('summary,h2,.head')?.textContent||pageTitle); sectionTitle=sectionTitle.replace(/T\d{2}-?[A-J]?\s*[｜·-]?/i,'').trim();
-  const peers=[...((c.parentElement?.querySelectorAll('.bm,strong'))||[])].map(x=>clean(x.textContent)).filter(Boolean).slice(0,8);
-  add({word,meaning,code,href,level,section,sectionTitle,related:peers});
- }
-}
-
-async function loadExtras(){
- let added=0;
- for(const f of extraFiles){
-  try{const r=await fetch(f,{cache:'force-cache'}); if(!r.ok)continue; const arr=await r.json();
-   for(const e of arr){const href=fileMap.get(e.theme)||'index.html'; add({word:e.word,meaning:e.meaning,code:e.theme,href,level:e.level||'',section:'',sectionTitle:'Kamus Kurikulum｜课程词典',usage:e.usage||'',example:e.example||'',related:String(e.related||'').split(',').map(x=>x.trim()).filter(Boolean),source:'DSKP/KSSR/KSSM/UASA'}); added++;}
-  }catch(err){}
- }
- return added;
-}
-
-async function build(){
- const [loadedThemes,extraCount]=await Promise.all([
-  Promise.all(files.map(async([code,href])=>{try{const r=await fetch(href,{cache:'force-cache'}); if(!r.ok)throw new Error(); const t=await r.text(); if(!parseRaw(t,code,href))parseDom(t,code,href); return true;}catch(e){return false;}})),
-  loadExtras()
- ]);
- status.textContent=`${index.length} perkataan sedia dicari｜已载入 ${index.length} 个词汇`;
- const ok=loadedThemes.filter(Boolean).length; if(ok<files.length)status.textContent+=` · ${ok}/30 tema`;
- if(extraCount)status.textContent+=` · +${extraCount} kosa kata kurikulum｜新增课程词 ${extraCount}`;
- const q=new URLSearchParams(location.search).get('q'); if(q){input.value=q; search(q);}
-}
-
-function mark(text,q){const s=esc(text); const qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); if(!qq)return s; return s.replace(new RegExp('('+qq+')','ig'),'<span class="word-mark">$1</span>');}
-function search(v){const q=norm(v); results.innerHTML=''; empty.style.display='none'; if(!q){status.textContent=`${index.length} perkataan sedia dicari｜已载入 ${index.length} 个词汇`;return;}
- let found=index.map(x=>{const w=norm(x.word),m=norm(x.meaning),u=norm(x.usage),e=norm(x.example),r=norm((x.related||[]).join(' ')); let score=w===q?0:w.startsWith(q)?1:w.includes(q)?2:m===q?3:m.includes(q)?4:u.includes(q)?5:e.includes(q)?6:r.includes(q)?7:99; return [score,x];}).filter(x=>x[0]<99).sort((a,b)=>a[0]-b[0]||a[1].word.localeCompare(b[1].word)).slice(0,40).map(x=>x[1]);
- status.textContent=`${found.length} hasil｜找到 ${found.length} 个结果`;
- if(!found.length){empty.style.display='block';return;}
- for(const x of found){const rel=(x.related||[]).filter(r=>norm(r)!==norm(x.word)).slice(0,6); const card=document.createElement('article'); card.className='word-result';
-  const usage=x.usage?`<div class="word-usage"><b>Penggunaan｜用法</b><br>${mark(x.usage,v)}</div>`:'';
-  const example=x.example?`<div class="word-example"><b>Contoh ayat｜例句</b><br>${mark(x.example,v)}</div>`:'';
-  card.innerHTML=`<h3>${mark(x.word,v)}</h3><div class="word-meaning">${mark(x.meaning,v)}</div><div class="word-meta">${esc(x.code)}${x.section?' · '+esc(x.section):''}${x.level?' · '+esc(x.level):''}${x.source?' · '+esc(x.source):''}</div><div class="word-context"><b>Konteks｜语境</b><br>${esc(x.sectionTitle||'Kosa kata Bahasa Melayu｜马来文词汇')}</div>${usage}${example}${rel.length?`<div class="word-related"><b>Perkataan berkaitan｜相关词汇：</b> ${rel.map(esc).join(' · ')}</div>`:''}<a class="word-open" href="${esc(x.href)}?q=${encodeURIComponent(x.word)}${x.section?'#'+encodeURIComponent(x.section):''}">Buka tema｜进入主题</a>`;
-  results.appendChild(card);
- }
-}
-let timer; input.addEventListener('input',()=>{clearTimeout(timer); timer=setTimeout(()=>search(input.value),90)});
-build();
+const panel=document.createElement('section');panel.className='word-search-panel';
+panel.innerHTML=`<h2>Kamus Kosa Kata｜课程词汇字典</h2><p class="word-search-help">输入马来文或华语，例如 <b>gembira</b>、<b>menghuraikan</b>、<b>关心</b>。系统会显示词义、等级、用法、例句与相关词。</p><div class="word-search-box"><input id="wordSearch" class="word-search-input" type="search" autocomplete="off" placeholder="Cari perkataan / 搜索词汇，例如 gembira、menghuraikan、关心"></div><div class="word-search-note">词库依据 DSKP / KSSR / KSSM / UASA 的语言能力、系统语言与学校常用语境扩展；不是 KPM 官方逐词封闭清单。</div><div id="wordSearchStatus" class="word-search-status">Memuatkan kosa kata…｜正在载入词库…</div><div id="wordResults" class="word-results"></div><div id="wordEmpty" class="word-empty">Perkataan tidak ditemui｜没有找到这个词</div>`;dashboard.insertAdjacentElement('afterend',panel);
+const input=panel.querySelector('#wordSearch'),results=panel.querySelector('#wordResults'),status=panel.querySelector('#wordSearchStatus'),empty=panel.querySelector('#wordEmpty');let index=[];
+const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));const norm=s=>String(s??'').toLowerCase().normalize('NFKC').trim();const clean=s=>String(s??'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();const add=o=>{if(!o.word||!o.meaning)return;const key=[norm(o.word),norm(o.meaning),o.href,o.level,o.section,o.usage||''].join('|');if(!index.some(x=>x._key===key))index.push({...o,_key:key});};
+function parseRaw(text,code,href){const m=text.match(/const\s+raw\s*=\s*`([\s\S]*?)`\s*;/);if(!m)return false;const lines=m[1].split(/\r?\n/).map(x=>x.trim()).filter(Boolean);for(const line of lines){const p=line.split('|');if(p.length<11)continue;const section=p[0].toUpperCase(),msTitle=clean(p[1]),zhTitle=clean(p[2]);for(let i=3;i<=10;i++){const level='L'+(i-2),entries=p[i].split(';').map(x=>x.trim()).filter(Boolean),related=entries.map(e=>clean(e.split('~')[0])).filter(Boolean);for(const e of entries){const k=e.indexOf('~');if(k<1)continue;add({word:clean(e.slice(0,k)),meaning:clean(e.slice(k+1)),code,href,level,section,sectionTitle:msTitle+'｜'+zhTitle,related});}}}return true;}
+function parseDom(text,code,href){const doc=new DOMParser().parseFromString(text,'text/html'),pageTitle=clean(doc.querySelector('h1')?.textContent||code),containers=[...doc.querySelectorAll('.item,.word')];for(const c of containers){const wordEl=c.querySelector('.bm,strong');if(!wordEl)continue;const word=clean(wordEl.textContent);if(!word)continue;let meaning='';const zh=c.querySelector('.zh');if(zh)meaning=clean(zh.textContent);else{const ds=[...c.children].filter(x=>x!==wordEl&&x.tagName!=='SMALL');meaning=clean(ds[0]?.textContent||'');}if(!meaning)continue;const levelEl=c.closest('.level,details'),cls=(levelEl?.className||'').toString(),lm=cls.match(/\bl([1-8])\b/i);let level=lm?'L'+lm[1]:'';if(!level){const h=clean(levelEl?.querySelector('h3,summary')?.textContent||''),hm=h.match(/L([1-8])/i);if(hm)level='L'+hm[1];}const sec=c.closest('details.section,.section'),section=(sec?.id||'').toUpperCase();let sectionTitle=clean(sec?.querySelector('summary,h2,.head')?.textContent||pageTitle);sectionTitle=sectionTitle.replace(/T\d{2}-?[A-J]?\s*[｜·-]?/i,'').trim();const peers=[...((c.parentElement?.querySelectorAll('.bm,strong'))||[])].map(x=>clean(x.textContent)).filter(Boolean).slice(0,8);add({word,meaning,code,href,level,section,sectionTitle,related:peers});}}
+async function loadExtras(){let added=0;for(const f of extraFiles){try{const r=await fetch(f,{cache:'force-cache'});if(!r.ok)continue;const arr=await r.json();for(const e of arr){const href=fileMap.get(e.theme)||'index.html';add({word:e.word,meaning:e.meaning,code:e.theme,href,level:e.level||'',section:'',sectionTitle:'Kamus Kurikulum｜课程词典',usage:e.usage||'',example:e.example||'',related:String(e.related||'').split(',').map(x=>x.trim()).filter(Boolean),source:'DSKP/KSSR/KSSM/UASA'});added++;}}catch(err){}}return added;}
+async function build(){const [loadedThemes,extraCount]=await Promise.all([Promise.all(files.map(async([code,href])=>{try{const r=await fetch(href,{cache:'force-cache'});if(!r.ok)throw new Error();const t=await r.text();if(!parseRaw(t,code,href))parseDom(t,code,href);return true;}catch(e){return false;}})),loadExtras()]);status.textContent=`${index.length} perkataan sedia dicari｜已载入 ${index.length} 个词汇`;const ok=loadedThemes.filter(Boolean).length;if(ok<files.length)status.textContent+=` · ${ok}/30 tema`;if(extraCount)status.textContent+=` · +${extraCount} kosa kata kurikulum｜新增课程词 ${extraCount}`;const q=new URLSearchParams(location.search).get('q');if(q){input.value=q;search(q);}}
+function mark(text,q){const s=esc(text),qq=esc(q).replace(/[.*+?^${}()|[\]\\]/g,'\\$&');if(!qq)return s;return s.replace(new RegExp('('+qq+')','ig'),'<span class="word-mark">$1</span>');}
+function search(v){const q=norm(v);results.innerHTML='';empty.style.display='none';if(!q){status.textContent=`${index.length} perkataan sedia dicari｜已载入 ${index.length} 个词汇`;return;}let found=index.map(x=>{const w=norm(x.word),m=norm(x.meaning),u=norm(x.usage),e=norm(x.example),r=norm((x.related||[]).join(' '));let score=w===q?0:w.startsWith(q)?1:w.includes(q)?2:m===q?3:m.includes(q)?4:u.includes(q)?5:e.includes(q)?6:r.includes(q)?7:99;return[score,x];}).filter(x=>x[0]<99).sort((a,b)=>a[0]-b[0]||a[1].word.localeCompare(b[1].word)).slice(0,40).map(x=>x[1]);status.textContent=`${found.length} hasil｜找到 ${found.length} 个结果`;if(!found.length){empty.style.display='block';return;}for(const x of found){const rel=(x.related||[]).filter(r=>norm(r)!==norm(x.word)).slice(0,6),card=document.createElement('article');card.className='word-result';const usage=x.usage?`<div class="word-usage"><b>Penggunaan｜用法</b><br>${mark(x.usage,v)}</div>`:'',example=x.example?`<div class="word-example"><b>Contoh ayat｜例句</b><br>${mark(x.example,v)}</div>`:'';card.innerHTML=`<h3>${mark(x.word,v)}</h3><div class="word-meaning">${mark(x.meaning,v)}</div><div class="word-meta">${esc(x.code)}${x.section?' · '+esc(x.section):''}${x.level?' · '+esc(x.level):''}${x.source?' · '+esc(x.source):''}</div><div class="word-context"><b>Konteks｜语境</b><br>${esc(x.sectionTitle||'Kosa kata Bahasa Melayu｜马来文词汇')}</div>${usage}${example}${rel.length?`<div class="word-related"><b>Perkataan berkaitan｜相关词汇：</b> ${rel.map(esc).join(' · ')}</div>`:''}<a class="word-open" href="${esc(x.href)}?q=${encodeURIComponent(x.word)}${x.section?'#'+encodeURIComponent(x.section):''}">Buka tema｜进入主题</a>`;results.appendChild(card);}}
+let timer;input.addEventListener('input',()=>{clearTimeout(timer);timer=setTimeout(()=>search(input.value),90)});build();
 })();
